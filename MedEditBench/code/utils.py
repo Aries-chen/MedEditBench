@@ -1,15 +1,9 @@
 import __main__
 import sys
 sys.path.append('../../')
-import os
-os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
-import warnings
-warnings.filterwarnings("ignore")
 
 import json
 import re
-from tqdm import tqdm
-import pandas as pd
 
 import torch
 from transformers import AutoTokenizer
@@ -17,7 +11,6 @@ from transformers import AutoModelForCausalLM
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from easyeditor import BaseEditor, BaseEditor_external
-
 
 
 post_edit_system_prompt = '''Please answer the following question using a chain of thought. 
@@ -111,25 +104,6 @@ def text_generate_cot_batch(model, queries, sys_prompt=cot_prompt, temperature=0
         responses.append(tokenizer.decode(trimmed_ids, skip_special_tokens=True))
     
     return responses
-
-
-def get_json_data(dataset_input_path):
-    with open(dataset_input_path, "r") as f:
-        data = json.load(f)
-    return data
-
-
-def get_original_model(model_id):
-    if model_id == "Llama-3.2-3B-Instruct":
-        model_path = "../../ckpt/Llama-3.2-3B-Instruct"
-    elif model_id == "Llama-3.2-1B-Instruct":
-        model_path = "../../ckpt/Llama-3.2-1B-Instruct"
-    else:
-        raise ValueError("model_id not found")
-
-    ori_model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.float32, device_map="auto")
-
-    return ori_model
 
 
 def text_generate_batch(model, queries, sys_prompt=icl_system_prompt, temperature=0.0, max_new_tokens=512, model_id="Llama-3.2-3B-Instruct"):
@@ -360,6 +334,25 @@ def get_edit_model_fast(hparams, prompts, subject, target_new, ground_truth, mod
 
 
 # helpful functions
+def get_json_data(dataset_input_path):
+    with open(dataset_input_path, "r") as f:
+        data = json.load(f)
+    return data
+
+
+def get_original_model(model_id):
+    if model_id == "Llama-3.2-3B-Instruct":
+        model_path = "../../ckpt/Llama-3.2-3B-Instruct"
+    elif model_id == "Llama-3.2-1B-Instruct":
+        model_path = "../../ckpt/Llama-3.2-1B-Instruct"
+    else:
+        raise ValueError("model_id not found")
+
+    ori_model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.float32, device_map="auto")
+
+    return ori_model
+
+
 def is_ans_equal(gt_ans, edited_ans):
     if gt_ans is None or edited_ans is None:
         return False
@@ -377,6 +370,31 @@ def is_ans_equal(gt_ans, edited_ans):
             return True
     return False
 
+
+def validate_cot_response(response, gt_ans):
+    if "[STEP]" not in response or "[ANSWER]" not in response:
+        print(f'there is no [STEP] or [ANSWER] in response')
+        return False, None, None
+    
+    answer_part = response.split("[ANSWER]")[-1].strip()
+    is_derive_gt_ans = is_ans_equal(gt_ans, answer_part)
+    return is_derive_gt_ans, response, answer_part
+
+
+def find_final_option_letter(line):
+    bracket_matches = re.findall(r'\([^)]*?([A-Z])[^)]*?\)', line)
+    option_matches = re.findall(r'\boption\s+([A-Z])\b', line, re.IGNORECASE)
+    answer_matches = re.findall(r'answer\s+is\s+([A-Z])\b', line, re.IGNORECASE)
+
+    if bracket_matches:
+        return bracket_matches[0]
+    elif option_matches:
+        return option_matches[0]
+    elif answer_matches:
+        return answer_matches[0]
+    else:
+        return None    
+    
 
 def get_ans_part(answer_text):
     answer_match = re.search(r'\[ANSWER\][\s]*([A-D])', answer_text)
@@ -494,6 +512,19 @@ def remove_illegal_chars(data):
 def remove_exp_leakage(data):
     new_data = data["explanation"].apply(clean_string)
     return new_data
+
+
+def is_illegal_chars(q_text):
+    illegal_chars = set()
+    for char in q_text:
+        if not (32 <= ord(char) <= 126):
+            illegal_chars.add(char)
+    if illegal_chars:
+        print("illegal chars:", ", ".join(illegal_chars))
+        return True
+    else:
+        return False
+
 
 
 import re

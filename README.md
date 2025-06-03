@@ -4,6 +4,9 @@ This repository contains the code and dataset for **MedEditBench**, as proposed 
 **"Beyond Memorization: A Rigorous Evaluation Framework for Medical Knowledge Editing."**
 
 
+![alt text](image/overview.png)
+*Overview of proposed medical knowledge editing evaluation framework (MedEditBench).*
+
 
 ## 🔧 Requirements
 
@@ -24,7 +27,8 @@ We use the following datasets to construct `MedMCQA_edit` and `MedExQA_edit`.
 * MedMCQA: [https://github.com/medmcqa/medmcqa](https://github.com/medmcqa/medmcqa)
 * MedExQA: [https://github.com/knowlab/MedExQA](https://github.com/knowlab/MedExQA)
 
-We have provided the medical knowledge editing datasets in `./MedEditBench/data/`.
+We have provided the medical knowledge editing datasets in `./MedEditBench/data/`. 
+Datasets with the suffix `_gold_subset.json` is a human verification set for experiments in Figure 4 and Table 5.
 
 You can also construct `MedMCQA_edit` and `MedExQA_edit` from scratch, please run:
 
@@ -46,4 +50,5 @@ For details of the editing and evaluation process, see:
 
 ```
 ./MedEditBench/code/run_editing.py
+./MedEditBench/code/compute_post_edit_metrics.py
 ```
